@@ -22,7 +22,7 @@ The bounding box of the placeholder defines the size and the position of the cha
 <rect id="my_chart" x="340" y="60" width="420" height="300" />
 ```
 
-The entities listed in the service data are registered as triggers for the rule, which means the chart is refreshed whenever one of those entities changes state.
+The entities listed in the service data are registered as triggers for the rule, which means the chart is refreshed whenever one of those entities changes state. A chart whose entities update rarely is redrawn rarely. Charts that are rendered while their floorplan page is hidden may be drawn incorrectly, and they are corrected on the next state change after the page becomes visible.
 
 ```yaml
 rules:
@@ -53,7 +53,9 @@ The following service data options are supported. If an option is not listed in 
 | `show_names`         | no       | `true`  | Whether the legend is shown.                                                                         |
 | `theme`              | no       | `light` | The ApexCharts theme mode. The accepted values are `light` and `dark`.                               |
 | `background`         | no       |         | A CSS color that is painted behind the chart.                                                        |
-| `apex_chart_options` | no       |         | Additional ApexCharts options that are merged over the generated chart. The `series` option cannot be overridden. |
+| `apex_chart_options` | no       |         | Additional ApexCharts options that are applied over the generated chart. The merge behaviour is described below the table. |
+
+Any option from the [ApexCharts options reference](https://apexcharts.com/docs/options/) can be entered under `apex_chart_options`. Each top level key replaces the corresponding generated key completely, so when a key such as `legend` or `stroke` is provided, the whole generated value for that key is replaced rather than merged into it. The `series` key is protected and is always generated from the entity history. The settings that are enforced by the floorplan (the chart size, tooltips, the toolbar and animations, as described in the custom charts section) are applied after the merge and cannot be changed here.
 
 A simple history graph is configured as follows.
 
@@ -195,12 +197,15 @@ The following service data options are supported. If an option is not listed in 
 
 The `apex_chart_options` value is passed directly to the ApexCharts library. The available options are documented in the [ApexCharts options reference](https://apexcharts.com/docs/options/). Note that this is not the configuration format of the apexcharts card that is distributed through HACS. Card level options from that project are not supported here.
 
-All ApexCharts chart types can be used. The available types are `line`, `area`, `scatter`, `bubble`, `rangeArea`, `bar`, `column`, `rangeBar`, `candlestick`, `boxPlot`, `violin`, `pie`, `donut`, `polarArea`, `radialBar`, `radar`, `heatmap` and `treemap`.
+The following chart types have been verified to render on the floorplan. The types are `line`, `area`, `scatter`, `bubble`, `rangeArea`, `bar`, `rangeBar`, `candlestick`, `boxPlot`, `violin`, `pie`, `donut`, `polarArea`, `radialBar`, `radar`, `heatmap` and `treemap`. Vertical columns are drawn with the `bar` type, which draws vertical bars unless `plotOptions.bar.horizontal` is enabled.
 
-Some settings are enforced by the floorplan and cannot be changed through the configuration.
+ApexCharts options are passed through without filtering, but the floorplan converts every chart to static SVG, so options only take effect when their result is part of the drawn image. The behaviour can be summarised as follows.
 
+- Options that shape the drawn image are supported. This covers the series, colors, fills, strokes, grids, axes, data labels, plot options, legends and annotations.
 - The width and height of the chart are taken from the bounding box of the target element. The `chart.width` and `chart.height` options are ignored.
-- The toolbar, tooltips and animations are disabled, because the chart is converted to static SVG.
+- Tooltips, the toolbar and animations are always disabled and the related options are ignored.
+- Options that depend on a live chart have no effect. This covers zooming, panning, selection, event callbacks, keyboard navigation, drilldown and the download menu.
+- Responsive breakpoints are based on the browser window rather than the placeholder element, so they are not useful on a floorplan.
 
 A simple custom chart is configured as follows. The series is computed from the current state of an entity.
 
@@ -351,11 +356,3 @@ rules:
             };
 ```
 
-## Notes and limitations
-
-- Charts are redrawn when one of their trigger entities changes state. A chart whose entities update rarely is redrawn rarely.
-- Charts are static images between renders. Tooltips, zooming and other interactive features are not available.
-- The history graph draws one unit group. Entities with mixed units are not drawn side by side.
-- Non numeric entities are not drawn by the history graph.
-- The `statistics-graph` type does not fetch long term statistics. It is an alias of `history-graph`.
-- Charts that are rendered while their floorplan page is hidden may be drawn incorrectly. They are corrected on the next state change after the page becomes visible.
